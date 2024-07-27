@@ -30,7 +30,7 @@ class ExtractAndExportToCsv(BaseKhanDataHandling):
             articles = 0
             videos = 0
             total_seconds = 0
-            title = "Arithmetic"
+            title = "Algebra 2"
             stats_by_units = {}
 
             for line in reader:
