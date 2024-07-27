@@ -2,6 +2,11 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
+      <module fileurl="file://$PROJECT_DIR$/.idea/.idea/.idea.iml" filepath="$PROJECT_DIR$/.idea/.idea/.idea.iml" />
+      <module fileurl="file://$PROJECT_DIR$/Integrations_with_translation_portal/.idea/Integrations_with_translation_portal.iml" filepath="$PROJECT_DIR$/Integrations_with_translation_portal/.idea/Integrations_with_translation_portal.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/Khan_Academy_helpers.iml" filepath="$PROJECT_DIR$/.idea/Khan_Academy_helpers.iml" />
+      <module fileurl="file://$PROJECT_DIR$/Olof's code/.idea/Olof's code.iml" filepath="$PROJECT_DIR$/Olof's code/.idea/Olof's code.iml" />
+      <module fileurl="file://$PROJECT_DIR$/Parser/.idea/Parser.iml" filepath="$PROJECT_DIR$/Parser/.idea/Parser.iml" />
       <module fileurl="file://$PROJECT_DIR$/.idea/pythonProject.iml" filepath="$PROJECT_DIR$/.idea/pythonProject.iml" />
     </modules>
   </component>
