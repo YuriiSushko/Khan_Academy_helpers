@@ -1,7 +1,7 @@
 import csv
 from typing import Dict, Tuple
 import os
-from Parser.base_functions import BaseKhanDataHandling
+from base_functions import BaseKhanDataHandling
 
 
 class CountAllStats(BaseKhanDataHandling):

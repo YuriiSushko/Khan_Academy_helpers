@@ -1,8 +1,8 @@
 import csv
 from typing import List, Dict
 import os
-from Parser.base_functions import BaseKhanDataHandling
-from Parser.base_functions import KhanDataHandling
+
+from base_functions import BaseKhanDataHandling, KhanDataHandling
 
 
 class ExtractAndExportToCsv(BaseKhanDataHandling):
