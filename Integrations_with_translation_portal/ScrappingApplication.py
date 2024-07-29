@@ -93,7 +93,6 @@ def delete_translated_strings():
     body_element = switch_to_crowdin()
     translation_list = body_element.find_elements(By.TAG_NAME, 'tr')
 
-    translated_strings = []
     for row in translation_list:
         try:
             translate_element = row.find_element(By.XPATH, './td[2]')
@@ -102,7 +101,6 @@ def delete_translated_strings():
             continue
 
         if if_element_is_translated(translate_element) or if_element_is_approved(translate_element):
-            translated_strings.append(translate_element.text)
 
             if if_span_is_present(translate_element):
                 translate_element.find_element(By.TAG_NAME, 'span').click()
@@ -128,10 +126,47 @@ def delete_translated_strings():
     elapsed_time = end_time - start_time
     print(f"Time taken to delete translated strings: {elapsed_time:.2f} seconds")
 
-    return translated_strings
+
+def approve_strings():
+    start_time = time.time()
+    body_element = switch_to_crowdin()
+    translation_list = body_element.find_elements(By.TAG_NAME, 'tr')
+
+    for row in translation_list:
+        try:
+            translate_element = row.find_element(By.XPATH, './td[2]')
+        except NoSuchElementException:
+            print("Skipping row, no second td element found:", row.text)
+            continue
+
+        if if_element_is_translated(translate_element):
+
+            if if_span_is_present(translate_element):
+                translate_element.find_element(By.TAG_NAME, 'span').click()
+            else:
+                translate_element.find_element(By.CLASS_NAME, 'paragraph').click()
+
+            switch_to_editor()
+
+            suggestions = WebDriverWait(driver, 10).until(
+                EC.visibility_of_element_located((By.CLASS_NAME, "suggestion-text-container"))
+            )
+
+            if if_button_is_present(suggestions):
+                # defining delete button
+                approve_button = WebDriverWait(driver, 10).until(
+                    EC.element_to_be_clickable((By.CLASS_NAME, "approve-action"))
+                )
+
+                approve_button.click()
+
+            switch_to_crowdin()
+    end_time = time.time()
+    elapsed_time = end_time - start_time
+    print(f"Time taken to delete translated strings: {elapsed_time:.2f} seconds")
 
 
-delete_translated_strings()
+# delete_translated_strings()
 
 # untranslated_strings = find_untranslated_strings()
 # for element in untranslated_strings:

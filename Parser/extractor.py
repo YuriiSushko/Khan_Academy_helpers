@@ -30,7 +30,7 @@ class ExtractAndExportToCsv(BaseKhanDataHandling):
             articles = 0
             videos = 0
             total_seconds = 0
-            title = "Algebra 2"
+            title = "Basic geometry and measurement"
             stats_by_units = {}
 
             for line in reader:
@@ -64,7 +64,7 @@ class ExtractAndExportToCsv(BaseKhanDataHandling):
                     test_link = f"https://preview--uk.khanacademy.org/devadmin/translations/edit/uk/{kind}/{line[2]}"
                     articles += 1
                     # print(f"{original_title}:{line[33]}")
-                    article_data.append(KhanDataHandling(original_title, "None", course, unit_name, lesson, test_link, word_count))
+                    article_data.append(KhanDataHandling(original_title, "None", course, unit_name, lesson, test_link, str(word_count)))
 
                 if kind == "Exercise" and recording:
                     word_count = int(line[31])
@@ -72,7 +72,7 @@ class ExtractAndExportToCsv(BaseKhanDataHandling):
                     test_link = f"https://preview--uk.khanacademy.org/devadmin/translations/edit/uk/{kind}/{line[2]}"
                     exercises += 1
                     # print(f"{original_title}:{line[33]}")
-                    exercise_data.append(KhanDataHandling(original_title, "None", course, unit_name, lesson, test_link, word_count))
+                    exercise_data.append(KhanDataHandling(original_title, "None", course, unit_name, lesson, test_link, str(word_count)))
 
                 if kind == "Video" and recording:
                     youTube_link = f"https://www.youtube.com/watch?v={line[27]}"
@@ -103,9 +103,9 @@ class ExtractAndExportToCsv(BaseKhanDataHandling):
         output_path = os.path.join("C:/Users/lenovo/Documents/Khan data", f"{file_to_output}.csv")
         with open(output_path, 'w', encoding='utf-8-sig', newline='') as file:
             writer = csv.writer(file)
-            writer.writerow(["", "Video title(En)", "Unit", "Lesson", "Duration", "Actor", "Recorded", "Auditor", "Validated", "Producer", "Postprocessed", "Who added?", "Added on platform", "Video title(Ua)", "Translator", "Name translated", "Link", "title"])
+            writer.writerow(["", "Video title(En)", "Unit", "Lesson", "Duration", "Actor", "Recorded", "Auditor", "Ready for 2nd audit", "2nd auditor", "Validated", "Producer", "Postprocessed", "Who added?", "Added on platform", "Video title(Ua)", "Translator", "Name translated", "Link", "title"])
             for item in data:
-                writer.writerow(["", "", self.escape_csv_field(item.unit_name), self.escape_csv_field(item.lesson_name), self.escape_csv_field(item.duration), "", "", "", "", "", "", "", "", "", "", "", self.escape_csv_field(item.youtube_link), self.escape_csv_field(item.original_title)])
+                writer.writerow(["", "", self.escape_csv_field(item.unit_name), self.escape_csv_field(item.lesson_name), self.escape_csv_field(item.duration), "", "", "", "", "", "", "", "", "", "", "", "", "", self.escape_csv_field(item.youtube_link), self.escape_csv_field(item.original_title)])
         print(f"CSV file created successfully at {output_path}!")
 
     def exporter_titles(self, data: List[KhanDataHandling], file_to_output: str):
