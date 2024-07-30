@@ -30,7 +30,7 @@ class ExtractAndExportToCsv(BaseKhanDataHandling):
             articles = 0
             videos = 0
             total_seconds = 0
-            title = "Basic geometry and measurement"
+            title = "Arithmetic"
             stats_by_units = {}
 
             for line in reader:
@@ -75,7 +75,7 @@ class ExtractAndExportToCsv(BaseKhanDataHandling):
                     exercise_data.append(KhanDataHandling(original_title, "None", course, unit_name, lesson, test_link, str(word_count)))
 
                 if kind == "Video" and recording:
-                    youTube_link = f"https://www.youtube.com/watch?v={line[27]}"
+                    youTube_link = f"https://www.youtube.com/watch?v={line[16]}"
                     video_title_words += int(line[31])
                     duration_in_seconds = int(line[17])
                     translated_title = line[26]
@@ -87,7 +87,7 @@ class ExtractAndExportToCsv(BaseKhanDataHandling):
                         KhanDataHandling(original_title, translated_title, course, unit_name, lesson, youTube_link,
                                          duration))
 
-            self.exporter(video_data, title)
+            self.exporter(exercise_data, title)
 
             # Print stats
             print(f"{title} words: {total_words}")

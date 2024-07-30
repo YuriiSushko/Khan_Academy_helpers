@@ -166,7 +166,7 @@ def approve_strings():
     print(f"Time taken to delete translated strings: {elapsed_time:.2f} seconds")
 
 
-# delete_translated_strings()
+delete_translated_strings()
 
 # untranslated_strings = find_untranslated_strings()
 # for element in untranslated_strings:
