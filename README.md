@@ -53,6 +53,7 @@ The program uses Selenium WebDriver to automate web browser actions. You need to
 In the ScrappingApplicationRunner.py, replace `'chrome_driver_path'` with the actual path to the `chromedriver` executable. For example:
 ```python
 chrome_driver_path = r'C:\ChromeDriver\chromedriver-win64\chromedriver.exe'
+```
 
 # Run instructions
 ## Start Chrome with Remote Debugging
