@@ -62,7 +62,7 @@ Before running the program, you need to start Chrome with remote debugging enabl
 ```bash
 cd "C:\Program Files\Google\Chrome\Application"
 ```
-- **This is the path to Chrome.exe**: This is where Chrome is installed on your system. Adjust the path if Chrome is installed in a different location.
+- **"C:\Program Files\Google\Chrome\Application" is the path to Chrome.exe**: This is where Chrome is installed on your system. Adjust the path if Chrome is installed in a different location.
 ```bash
 .\chrome.exe --remote-debugging-port=9222 --user-data-dir="C:\ChromeProfile"
 ```
