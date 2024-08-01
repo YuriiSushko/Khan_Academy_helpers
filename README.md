@@ -62,19 +62,19 @@ Before running the program, you need to start Chrome with remote debugging enabl
 ```bash
 cd "C:\Program Files\Google\Chrome\Application"
 ```
-- * This is the path to Chrome.exe *: This is where Chrome is installed on your system. Adjust the path if Chrome is installed in a different location.
+- **This is the path to Chrome.exe**: This is where Chrome is installed on your system. Adjust the path if Chrome is installed in a different location.
 ```bash
 .\chrome.exe --remote-debugging-port=9222 --user-data-dir="C:\ChromeProfile"
 ```
 
 ## Open Chrome Browser
-1. Ensure Only One Window Is Open
+1. **Ensure Only One Window Is Open**
    Make sure that only one window of Chrome is open after starting it with the remote debugging port. Having multiple windows can cause issues with the WebDriver connection.
 
-2. Log In to Crowdin
+2. **Log In to Crowdin**
     - Navigate to Crowdin and log in if you haven't done so already. This step is necessary only for the first time.
 
-3. Select the Right View
+3. **Select the Right View**
    - Choose the "Side by Side" view.
    - Ensure that all progress options are selected to view and manage translations effectively.
       
