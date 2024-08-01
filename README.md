@@ -53,3 +53,28 @@ The program uses Selenium WebDriver to automate web browser actions. You need to
 In the ScrappingApplicationRunner.py, replace `'chrome_driver_path'` with the actual path to the `chromedriver` executable. For example:
 ```python
 chrome_driver_path = r'C:\ChromeDriver\chromedriver-win64\chromedriver.exe'
+
+# Run instructions
+## Start Chrome with Remote Debugging
+
+Before running the program, you need to start Chrome with remote debugging enabled. Open your command prompt and execute the following commands:
+```bash
+cd "C:\Program Files\Google\Chrome\Application"
+```
+- * This is the path to Chrome.exe *: This is where Chrome is installed on your system. Adjust the path if Chrome is installed in a different location.
+```bash
+.\chrome.exe --remote-debugging-port=9222 --user-data-dir="C:\ChromeProfile"
+```
+
+## Open Chrome Browser
+1. Ensure Only One Window Is Open
+   Make sure that only one window of Chrome is open after starting it with the remote debugging port. Having multiple windows can cause issues with the WebDriver connection.
+
+2. Log In to Crowdin
+    - Navigate to Crowdin and log in if you haven't done so already. This step is necessary only for the first time.
+
+3. Select the Right View
+   - Choose the "Side by Side" view.
+   - Ensure that all progress options are selected to view and manage translations effectively.
+      
+## Run the ScrapingApplicationRunner.py
