@@ -1,30 +1,45 @@
-import re
 import time
-import copy
 
-from selenium import webdriver
-from selenium.common import NoSuchElementException
-from selenium.webdriver.common.by import By
-from selenium.webdriver.remote.webdriver import WebDriver
-from selenium.webdriver.common.action_chains import ActionChains
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
-from selenium.webdriver.chrome.options import Options
-from selenium.webdriver.chrome.service import Service
-from selenium.webdriver.common.keys import Keys
+try:
+    from tqdm import tqdm
+except ImportError:
+    print("tqdm is not installed. Please install it using 'pip install tqdm'.")
+    tqdm = None
+
+try:
+    from colorama import Fore, Style, init
+    init(autoreset=True)
+except ImportError:
+    print("colorama is not installed. Please install it using 'pip install colorama'.")
+    Fore = None
+    Style = None
+
+try:
+    from selenium import webdriver
+    from selenium.common.exceptions import NoSuchElementException
+    from selenium.webdriver.common.by import By
+    from selenium.webdriver.support.ui import WebDriverWait
+    from selenium.webdriver.support import expected_conditions as EC
+    from selenium.webdriver.chrome.options import Options
+    from selenium.webdriver.chrome.service import Service
+except ImportError:
+    print("selenium is not installed. Please install it using 'pip install selenium'.")
 
 
-# Setting filepath
 chrome_driver_path = r'C:\ChromeDriver\chromedriver-win64\chromedriver.exe'
 
-# Setting Chrome options
-chrome_options = Options()
-chrome_options.add_experimental_option("debuggerAddress", "127.0.0.1:9222")
-service = Service(chrome_driver_path)
-driver = webdriver.Chrome(service=service, options=chrome_options)
+webdriver_installed = True
+try:
+    chrome_options = Options()
+    chrome_options.add_experimental_option("debuggerAddress", "127.0.0.1:9222")
+    service = Service(chrome_driver_path)
+    driver = webdriver.Chrome(service=service, options=chrome_options)
+except Exception as e:
+    webdriver_installed = False
+    webdriver_error = str(e)
+    print(f"Webdriver is not installed or not configured correctly. Error: {webdriver_error}")
 
 print("Name of current webpage", driver.title)
-
 
 def switch_to_editor():
     driver.switch_to.frame("crowdin-editor-iframe")
@@ -93,11 +108,19 @@ def delete_translated_strings():
     body_element = switch_to_crowdin()
     translation_list = body_element.find_elements(By.TAG_NAME, 'tr')
 
+    progress_bar = tqdm(
+        total=len(translation_list),
+        desc=f"{Fore.CYAN}Deleting translated strings{Style.RESET_ALL}",
+        bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}, {rate_fmt}]",
+        ascii=" █▓▒░"
+    )
+
     for row in translation_list:
         try:
             translate_element = row.find_element(By.XPATH, './td[2]')
         except NoSuchElementException:
-            print("Skipping row, no second td element found:", row.text)
+            print(f"{Fore.YELLOW}Skipping row, no second td element found:{Style.RESET_ALL} {row.text}")
+            progress_bar.update(1)
             continue
 
         if if_element_is_translated(translate_element) or if_element_is_approved(translate_element):
@@ -122,6 +145,8 @@ def delete_translated_strings():
                 delete_button.click()
 
             switch_to_crowdin()
+        progress_bar.update(1)
+    progress_bar.close()
     end_time = time.time()
     elapsed_time = end_time - start_time
     print(f"Time taken to delete translated strings: {elapsed_time:.2f} seconds")
@@ -132,11 +157,19 @@ def approve_strings():
     body_element = switch_to_crowdin()
     translation_list = body_element.find_elements(By.TAG_NAME, 'tr')
 
+    progress_bar = tqdm(
+        total=len(translation_list),
+        desc=f"{Fore.CYAN}Approving translated strings{Style.RESET_ALL}",
+        bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}, {rate_fmt}]",
+        ascii=" █▓▒░"
+    )
+
     for row in translation_list:
         try:
             translate_element = row.find_element(By.XPATH, './td[2]')
         except NoSuchElementException:
-            print("Skipping row, no second td element found:", row.text)
+            print(f"{Fore.YELLOW}Skipping row, no second td element found:{Style.RESET_ALL} {row.text}")
+            progress_bar.update(1)
             continue
 
         if if_element_is_translated(translate_element):
@@ -161,24 +194,32 @@ def approve_strings():
                 approve_button.click()
 
             switch_to_crowdin()
+        progress_bar.update(1)
+
+    progress_bar.close()
     end_time = time.time()
     elapsed_time = end_time - start_time
-    print(f"Time taken to delete translated strings: {elapsed_time:.2f} seconds")
+    print(f"Time taken to approve translated strings: {elapsed_time:.2f} seconds")
 
 
-delete_translated_strings()
+print(f"{Fore.GREEN}{Style.BRIGHT}Hello!{Style.RESET_ALL} it's a little program that helps you do some boring job\n"
+      f"{Fore.RED}* It may not do all pages, so start the code a few times *{Style.RESET_ALL}\n")
 
-# untranslated_strings = find_untranslated_strings()
-# for element in untranslated_strings:
-#     print(element)
+print(f"{Fore.CYAN}{Style.BRIGHT}Options:{Style.RESET_ALL}\n"
+      f"{Fore.YELLOW}To start approving all on the page, press {Fore.RED}1{Style.RESET_ALL}\n"
+      f"{Fore.YELLOW}To start deleting all translations, press {Fore.RED}2{Style.RESET_ALL}\n"
+      f"{Fore.YELLOW}To quit, press {Fore.RED}q{Style.RESET_ALL}\n"
+      f"{Fore.YELLOW}To interrupt the program, stop it manually{Style.RESET_ALL}\n")
 
-# # Open new tab
-# driver.execute_script("window.open('');")
-# time.sleep(1)  # Wait for the new tab to open
-#
-# # Switch to the new tab
-# driver.switch_to.window(driver.window_handles[-1])
-# driver.get("https://www.deepl.com/translator#en/uk/separate")
-#
-# driver.close()
-# # driver.switch_to.window(driver.window_handles[0])
+user_input = str
+
+while user_input != 'q':
+    user_input = input()
+    if user_input == '2':
+        delete_translated_strings()
+    if user_input == '1':
+        approve_strings()
+    if user_input == 'q':
+        break
+    else:
+        print("Please, enter the correct command\n")

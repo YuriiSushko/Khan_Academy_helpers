@@ -30,7 +30,7 @@ class ExtractAndExportToCsv(BaseKhanDataHandling):
             articles = 0
             videos = 0
             total_seconds = 0
-            title = "Arithmetic"
+            title = "Basic geometry and measurement"
             stats_by_units = {}
 
             for line in reader:
@@ -91,6 +91,7 @@ class ExtractAndExportToCsv(BaseKhanDataHandling):
 
             # Print stats
             print(f"{title} words: {total_words}")
+            print(f"{title} total minutes: {self.format_duration(total_seconds)}")
             print(f"{video_title_words} words in video titles and descriptions")
             print(f"{course_unit_lesson_words} words in course/unit/lesson titles and descriptions")
             print(f"{videos} videos")
