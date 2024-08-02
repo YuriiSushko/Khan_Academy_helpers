@@ -8,9 +8,12 @@ class BaseKhanDataHandling:
 
     @staticmethod
     def escape_csv_field(field):
+        # Check if the field contains any characters that require escaping
         if any(c in field for c in [',', '"', '\n']):
+            # Replace any double quotes with double double quotes
             field = field.replace('"', '""')
-            return f'"{field}"'
+            # Surround the field with double quotes
+            return f'{field}'
         return field
 
 
