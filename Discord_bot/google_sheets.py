@@ -2,18 +2,18 @@ import pandas as pd
 from datetime import datetime
 
 # Replace with your Google Sheet URL
-SHEET_URL = {1: 'https://docs.google.com/spreadsheets/d/1Si5f329_SYqas2s0ELLK817b-WU6iOgMkGCw4WMki9g/export?format=csv',
-             2: 'https://docs.google.com/spreadsheets/d/1czPUsPANW7a4ZX4nTfuyl1J53wGwyiP7Jqtwta_zjkM/export?format=csv'}
+SHEET_URL = {'Arithmetic': 'https://docs.google.com/spreadsheets/d/1Si5f329_SYqas2s0ELLK817b-WU6iOgMkGCw4WMki9g/export?format=csv',
+             'Precalculus': 'https://docs.google.com/spreadsheets/d/1czPUsPANW7a4ZX4nTfuyl1J53wGwyiP7Jqtwta_zjkM/export?format=csv'}
 
 
-def get_google_sheets_data(number):
+def get_google_sheets_data(course):
     # Fetch the Google Sheet as a DataFrame
-    df = pd.read_csv(SHEET_URL[number])
+    df = pd.read_csv(SHEET_URL[course])
     return df
 
 
-def get_latest_entry(name, surname, number):
-    df = get_google_sheets_data(number)
+def get_latest_entry(name, surname, course):
+    df = get_google_sheets_data(course)
 
     if df.empty:
         return None

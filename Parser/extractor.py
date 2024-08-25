@@ -30,7 +30,7 @@ class ExtractAndExportToCsv(BaseKhanDataHandling):
             articles = 0
             videos = 0
             total_seconds = 0
-            title = "Precalculus"
+            title = "Arithmetic"
             stats_by_units = {}
 
             for line in reader:
@@ -102,17 +102,12 @@ class ExtractAndExportToCsv(BaseKhanDataHandling):
 
     def exporter(self, data: List[KhanDataHandling], file_to_output: str):
         output_path = os.path.join("C:/Users/lenovo/Documents/Khan data", f"{file_to_output}.csv")
-        translated_title = True
+
         with open(output_path, 'w', encoding='utf-8-sig', newline='') as file:
             writer = csv.writer(file)
-            if not translated_title:
-                writer.writerow(["", "Video title(En)", "Unit", "Lesson", "Duration", "Actor", "Recorded", "Auditor", "Ready for 2nd audit", "2nd auditor", "Validated", "Producer", "Postprocessed", "Who added?", "Added on platform", "Video title(Ua)", "Translator", "Name translated", "Link", "title"])
-                for item in data:
-                    writer.writerow(["", "", self.escape_csv_field(item.unit_name), self.escape_csv_field(item.lesson_name), self.escape_csv_field(item.duration), "", "", "", "", "", "", "", "", "", "", "", "", "", self.escape_csv_field(item.youtube_link), self.escape_csv_field(item.original_title)])
-            else:
-                writer.writerow(["Video title(En)", "Video title(Ua)"])
-                for item in data:
-                    writer.writerow([self.escape_csv_field(item.original_title), self.escape_csv_field(item.translated_title)])
+            writer.writerow(["", "Video title(En)", "Unit", "Lesson", "Duration", "Actor", "Recorded", "Auditor", "Ready for 2nd audit", "2nd auditor", "Validated", "Producer", "Postprocessed", "Who added?", "Added on platform", "Video title(Ua)", "Translator", "Name translated", "Link", "title"])
+            for item in data:
+                writer.writerow(["", "", self.escape_csv_field(item.unit_name), self.escape_csv_field(item.lesson_name), self.escape_csv_field(item.duration), "", "", "", "", "", "", "", "", "", "", "", "", "", self.escape_csv_field(item.youtube_link), self.escape_csv_field(item.original_title)])
 
         print(f"CSV file created successfully at {output_path}!")
 
