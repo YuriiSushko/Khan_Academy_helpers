@@ -1,16 +1,18 @@
+import csv
 import typing
-from typing import Final, Optional, Tuple
+from typing import Final, Optional
 import os
 import discord
-import requests
-from google_sheets import get_latest_entry
+from Discord_bot.responses import get_response
+from google_sheets import get_all_entries
 from dotenv import load_dotenv
-from discord import Intents, Client, Message, app_commands
+from discord import Intents, app_commands, Message
 from discord.ext import commands
-from responses import get_response
+from io import StringIO
 
 load_dotenv()
 TOKEN: Final[str] = os.getenv('DISCORD_TOKEN')
+GUILD_ID: Final[int] = int(os.getenv('GUILD_ID'))
 
 
 class BotClient(commands.Bot):
@@ -18,33 +20,82 @@ class BotClient(commands.Bot):
         super().__init__(command_prefix="/", intents=intents)
         self.courses = [
             'Arithmetic',
-            'Precalculus'
+            'Precalculus',
+            'Algebra 2',
+            'Basic geometry and measurements'
+        ]
+        self.roles = [
+            "Actor",
+            "Translator",
+            "Auditor",
+            "Post production"
         ]
         self.add_commands()
 
     def add_commands(self):
-        @app_commands.command(name="info", description="Get user course information")
+        @app_commands.command(name="info", description="Get user information about his work")
         @app_commands.autocomplete(course=self.course_autocomplete)
-        async def info(interaction: discord.Interaction, name: str, surname: str, course: str):
-            try:
-                # Simulate fetching an entry
-                entry = True if course in self.courses else False
-                course_name = course if entry else "Жодної інформації"
-                await interaction.response.send_message(f"Course: {course_name}")
-            except Exception as e:
-                await interaction.response.send_message(f"Не вийшло отримати інформацію за запитом, причина: {e}")
+        @app_commands.autocomplete(role=self.role_autocomplete)
+        async def info(interaction: discord.Interaction, name: str, surname: str, course: str, role: str):
+            if not await self.validate_inputs(interaction, course, role):
+                return
+            if role == "Actor":
+                await self.send_actor_info(interaction, name, surname, course)
 
         self.tree.add_command(info)
 
+        @app_commands.command(name="ping", description="Check if the bot is responsive")
+        async def ping(interaction: discord.Interaction):
+            await interaction.response.send_message("Pong!")
+
+        self.tree.add_command(ping)
+
     async def course_autocomplete(self, interaction: discord.Interaction, current: str) -> typing.List[app_commands.Choice]:
-        choices = [
-            app_commands.Choice(name=course_name, value=course_name)
-            for course_name in self.courses
-        ]
-        return [choice for choice in choices if current.lower() in choice.name.lower()]
+        return [app_commands.Choice(name=course_name, value=course_name)
+                for course_name in self.courses if current.lower() in course_name.lower()]
+
+    async def role_autocomplete(self, interaction: discord.Interaction, current: str) -> typing.List[app_commands.Choice]:
+        return [app_commands.Choice(name=role, value=role)
+                for role in self.roles if current.lower() in role.lower()]
+
+    async def send_actor_info(self, interaction: discord.Interaction, name: str, surname: str, course: str):
+        data = get_all_entries(name, surname, course)
+
+        csv_output = StringIO()
+        csv_writer = csv.writer(csv_output)
+
+        csv_writer.writerow(['Status', 'Video Title', 'Link'])
+
+        for entry in data:
+            status = entry['Status']
+            video_title = entry['Video title(En)']
+            link = entry['Unnamed: 26']
+            csv_writer.writerow([status, video_title, link])
+
+        csv_output.seek(0)
+        discord_file = discord.File(fp=csv_output, filename="actor_info.csv")
+        await interaction.response.send_message(content="Статус відео/конспекту/тесту: дані додано у вкладений файл",
+                                                file=discord_file)
+
+    async def validate_inputs(self, interaction: discord.Interaction, course: str, role: str) -> bool:
+        if course not in self.courses:
+            await interaction.response.send_message(
+                f"Error: Введіть будь ласка курс зі списку:\n{', '.join(self.courses)}", ephemeral=True)
+            return False
+        if role not in self.roles:
+            await interaction.response.send_message(
+                f"Error: Введіть будь ласка роль зі списку:\n{', '.join(self.roles)}", ephemeral=True)
+            return False
+        return True
 
     async def on_ready(self):
         await self.tree.sync()
+        commands = await self.tree.fetch_commands()
+
+        print(f"Commands registered in guild {GUILD_ID}:")
+        for command in commands:
+            print(f"Command: {command.name}, Description: {command.description}")
+
         print(f"{self.user} is now online!")
 
     async def on_message(self, message: Message):
@@ -65,34 +116,10 @@ class BotClient(commands.Bot):
 
         if user_message.startswith('?'):
             await self.send_response(message, user_message[1:], is_private=True)
-        elif user_message.startswith('!'):
-            await self.process_command(message)
+        elif not user_message.startswith('?'):
+            pass
         else:
             await self.send_response(message, user_message, is_private=False)
-
-    async def process_command(self, message: Message):
-        parts = message.content.strip().split(' ', 3)
-
-        command, *args = parts
-
-        valid_commands = ['info']
-        if command[1:] not in valid_commands:
-            await message.channel.send(f"Error: Невідома команда '{command[1:]}'")
-            return
-
-        if command[1:] == 'info':
-            if len(args) == 3:
-                name, surname, course = args
-                try:
-                    course in self.courses
-                except ValueError:
-                    await message.channel.send(f"Error: Введіть будь ласка курс зі списку:\n {self.courses}")
-                    return
-                await self.user_info(message.channel, name, surname, course)
-            else:
-                await message.channel.send(
-                    "Error: Будь ласка, напишіть команду в такому форматі '!command_name surname course'.")
-                return
 
     async def send_response(self, message: Message, user_message: str, is_private: bool):
         try:
@@ -104,25 +131,10 @@ class BotClient(commands.Bot):
         except Exception as e:
             print(f"Failed to send message: {e}")
 
-    async def download_video(self, attachment: discord.Attachment, part_number: int = 0):
-        try:
-            url = attachment.url
-            file_extension = attachment.filename.split('.')[-1]
-            filename = f'part_{part_number}.{file_extension}' if part_number else attachment.filename
-
-            response = requests.get(url)
-            with open(filename, 'wb') as f:
-                f.write(response.content)
-
-            print(f'Downloaded {filename}')
-        except Exception as e:
-            print(f"Failed to download video: {e}")
-
 
 def main() -> None:
     intents: Intents = discord.Intents.default()
     intents.message_content = True
-
     bot = BotClient(intents=intents)
     bot.run(TOKEN)
 
