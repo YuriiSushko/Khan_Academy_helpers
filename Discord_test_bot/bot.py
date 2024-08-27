@@ -105,40 +105,48 @@ async def paginate_embeds(ctx):
     print_log('INFO', 'Pagination ended and reactions cleared')
 
 
+class SheetsButtonView(View):
+    def __init__(self, sheets_info):
+        super().__init__(timeout=60)
+        self.sheets_info = sheets_info
+
+    # Dynamically create a button for each sheet
+    def create_buttons(self):
+        for sheet_name, sheet_link in self.sheets_info.items():
+            button = Button(label=sheet_name, style=discord.ButtonStyle.primary)
+            button.callback = self.create_callback(sheet_name, sheet_link)
+            self.add_item(button)
+
+    # Create a callback for each button
+    def create_callback(self, sheet_name, sheet_link):
+        async def callback(interaction: discord.Interaction):
+            # Send another embed with the selected sheet's information
+            embed = Embed(
+                title=sheet_name,
+                description=f"[Відкрити в браузері]({sheet_link})",
+                color=colors['blue']
+            )
+            await interaction.response.send_message(embed=embed)
+            print_log('INFO', f'{sheet_name} selected by {interaction.user}')
+        return callback
+
+
 # see and choose available google sheets in embed message
 @client.command()
 async def show_sheets(ctx):
+    sheets_info = get_sheets_info(SHEETS_LINKS)
+
     embed = Embed(
         title="Google Sheets",
         description="Обери таблицю, яку хочеш відкрити:",
         color=colors['blue']
     )
 
-    for sheet_name, sheet_link in get_sheets_info(SHEETS_LINKS).items():
-        embed.add_field(name=sheet_name, value=f"[Відкрити в браузері]({sheet_link})", inline=False)
+    view = SheetsButtonView(sheets_info)
+    view.create_buttons()
 
-    await ctx.send(embed=embed)
+    await ctx.send(embed=embed, view=view)
     print_log('INFO', f'Google Sheets list sent to {ctx.author} (show_sheets)')
-
-
-# see all worksheets in embed message
-@client.command()
-async def show_worksheets(ctx):
-    worksheets = get_all_worksheets(SHEET_ID)
-
-    embed = Embed(
-        title="Worksheets",
-        description="Список усіх робочих аркушів у Google Таблиці",
-        color=colors['green']
-    )
-
-    for worksheet in worksheets:
-        worksheet_link = f"[Відкрити в браузері](https://docs.google.com/spreadsheets/d/{SHEET_ID}/edit#gid={worksheet.id})"
-        embed.add_field(name=worksheet.title, value=worksheet_link, inline=False)
-
-    await ctx.send(embed=embed)
-    print_log('INFO', 'Worksheets list sent')
-
 
 if __name__ == "__main__":
     client.run(DS_BOT_TOKEN)

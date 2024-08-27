@@ -30,22 +30,23 @@ def get_sheet_id(sheet_link: str) -> str:
     return sheet_link.split('/')[-2]
 
 
-def get_sheets_info(sheets_links: list) -> dict:
+def get_sheets_info(sheets_links: list[str]) -> dict:
     """
     Extracts the ID and title of Google Sheets documents from their URLs.
     :param sheets_links: A list of URLs of Google Sheets documents.
     :return: A dictionary where the key is the title of the document and the value is the ID.
     """
     sheets_info = {}
-    for link in sheets_links:
+    for og_link in sheets_links:
+        clear_link = og_link.strip()
         try:
-            sheet_id = get_sheet_id(link)
+            sheet_id = get_sheet_id(clear_link)
             sheet = client.open_by_key(sheet_id)
         except Exception as e:
-            print(f"Failed to open the document by link: {link}")
+            print(f"Failed to open the document by link: {og_link}")
             print(f"Exception: {e}")
             continue
-        sheets_info[sheet.title] = link
+        sheets_info[sheet.title] = clear_link
     return sheets_info
 
 
