@@ -8,18 +8,14 @@ import dotenv
 import asyncio
 
 from logs_commands import print_log
-from sheets import get_all_worksheets
+from sheets import SHEETS_LINKS, get_sheets_info, get_all_worksheets
 
 # Load environment variables
 dotenv.load_dotenv()
 
-SHEETS_LINK = os.getenv('SHEETS_LINK')
-SHEET_ID = SHEETS_LINK.split('/')[-2]
-
 DS_BOT_TOKEN = os.getenv('DS_BOT_TOKEN')
 
 client = commands.Bot(command_prefix='-', intents=discord.Intents.all())
-
 
 colors = {
     'red': 0xe74c3c,
@@ -107,6 +103,22 @@ async def paginate_embeds(ctx):
             break
     await message.clear_reactions()
     print_log('INFO', 'Pagination ended and reactions cleared')
+
+
+# see and choose available google sheets in embed message
+@client.command()
+async def show_sheets(ctx):
+    embed = Embed(
+        title="Google Sheets",
+        description="Обери таблицю, яку хочеш відкрити:",
+        color=colors['blue']
+    )
+
+    for sheet_name, sheet_link in get_sheets_info(SHEETS_LINKS).items():
+        embed.add_field(name=sheet_name, value=f"[Відкрити в браузері]({sheet_link})", inline=False)
+
+    await ctx.send(embed=embed)
+    print_log('INFO', f'Google Sheets list sent to {ctx.author} (show_sheets)')
 
 
 # see all worksheets in embed message

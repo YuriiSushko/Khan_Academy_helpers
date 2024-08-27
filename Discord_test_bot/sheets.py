@@ -8,8 +8,8 @@ import dotenv
 # Load environment variables
 dotenv.load_dotenv()
 
-SHEETS_LINK = os.getenv('SHEETS_LINK')
-SHEET_ID = SHEETS_LINK.split('/')[-2]
+SHEETS_LINKS_STR = os.getenv('SHEETS_LINKS')
+SHEETS_LINKS = SHEETS_LINKS_STR.split(',')
 
 # Load credentials and create a client
 scopes = [
@@ -19,6 +19,34 @@ scopes = [
 creds = Credentials.from_service_account_file('credentials.json', scopes=scopes)
 
 client = gspread.authorize(creds)
+
+
+def get_sheet_id(sheet_link: str) -> str:
+    """
+    Extracts the ID of a Google Sheets document from its URL.
+    :param sheet_link: The URL of the Google Sheets document.
+    :return: The ID of the Google Sheets document.
+    """
+    return sheet_link.split('/')[-2]
+
+
+def get_sheets_info(sheets_links: list) -> dict:
+    """
+    Extracts the ID and title of Google Sheets documents from their URLs.
+    :param sheets_links: A list of URLs of Google Sheets documents.
+    :return: A dictionary where the key is the title of the document and the value is the ID.
+    """
+    sheets_info = {}
+    for link in sheets_links:
+        try:
+            sheet_id = get_sheet_id(link)
+            sheet = client.open_by_key(sheet_id)
+        except Exception as e:
+            print(f"Failed to open the document by link: {link}")
+            print(f"Exception: {e}")
+            continue
+        sheets_info[sheet.title] = link
+    return sheets_info
 
 
 def get_all_worksheets(sheet_id: str) -> list:
@@ -81,6 +109,10 @@ def parse_data_by_units(all_data: list, unit_column_id: int = 2) -> dict:
 
 if __name__ == "__main__":
     # Fetch all worksheets and display their titles
+    print(SHEETS_LINKS)
+    info = get_sheets_info(SHEETS_LINKS)
+    print(info)
+    SHEET_ID = get_sheet_id(SHEETS_LINKS[0])
     worksheets = get_all_worksheets(SHEET_ID)
     print("Available worksheets:")
     for i, ws in enumerate(worksheets):
