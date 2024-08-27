@@ -1,9 +1,9 @@
 import gspread
+from gspread import Worksheet
 from google.oauth2.service_account import Credentials
 
 import os
 import dotenv
-
 
 # Load environment variables
 dotenv.load_dotenv()
@@ -50,7 +50,7 @@ def get_sheets_info(sheets_links: list[str]) -> dict:
     return sheets_info
 
 
-def get_all_worksheets(sheet_id: str) -> list:
+def get_all_worksheets(sheet_id: str) -> list[Worksheet]:
     """
     Fetches all worksheets from a Google Sheets document.
     :param sheet_id: The ID of the Google Sheets document.
@@ -60,6 +60,17 @@ def get_all_worksheets(sheet_id: str) -> list:
     sheet = client.open_by_key(sheet_id)
     worksheets = sheet.worksheets()
     return worksheets
+
+
+def get_all_worksheets_list(sheet_id: str) -> list[str]:
+    """
+    Fetches all worksheets from a Google Sheets document.
+    :param sheet_id: The ID of the Google Sheets document.
+    :return: A list of all worksheets in the document.
+    """
+    sheet = client.open_by_key(sheet_id)
+    worksheets = sheet.worksheets()
+    return [ws.title for ws in worksheets]
 
 
 def get_worksheet(sheet_id: str, worksheet_name: str):

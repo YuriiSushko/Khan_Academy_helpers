@@ -8,7 +8,7 @@ import dotenv
 import asyncio
 
 from logs_commands import print_log
-from sheets import SHEETS_LINKS, get_sheets_info, get_all_worksheets
+from sheets import SHEETS_LINKS, get_sheets_info, get_sheet_id, get_all_worksheets_list
 
 # Load environment variables
 dotenv.load_dotenv()
@@ -106,6 +106,69 @@ async def paginate_embeds(ctx):
 
 
 # to interact with users using buttons
+# View for choosing a worksheet within a selected sheet
+class WorksheetButtonView(View):
+    def __init__(self, sheet_name: str, worksheets: list[str], sheets_info: dict[str, str], ctx):
+        """
+        Initializes the view with buttons for each worksheet.
+        :param sheet_name: The name of the selected sheet.
+        :param worksheets: A list of worksheet names.
+        :param sheets_info: The sheets information dictionary for going back.
+        :param ctx: The context of the command.
+        """
+        super().__init__(timeout=60)
+        self.sheet_name = sheet_name
+        self.worksheets = worksheets
+        self.sheets_info = sheets_info
+        self.ctx = ctx
+        self.create_buttons()
+
+    # Dynamically create a button for each worksheet
+    def create_buttons(self):
+        for worksheet in self.worksheets:
+            button = Button(label=worksheet, style=discord.ButtonStyle.primary)
+            button.callback = self.create_callback(worksheet)
+            self.add_item(button)
+
+        # 'Go Back' button to go back to sheet selection
+        back_button = Button(label="Go Back", style=discord.ButtonStyle.secondary)
+        back_button.callback = self.go_back_callback
+        self.add_item(back_button)
+
+    def create_callback(self, worksheet_name):
+        async def callback(interaction: discord.Interaction):
+            # Update the existing message with the selected worksheet's information
+            embed = Embed(
+                title=f"Worksheet: {worksheet_name}",
+                description=f"You have selected the worksheet: {worksheet_name} from the sheet: {self.sheet_name}.",
+                color=colors['blue']
+            )
+
+            # Create a new view with only the 'Go Back' button
+            back_button = Button(label="Go Back", style=discord.ButtonStyle.secondary)
+            back_button.callback = self.go_back_callback
+            view = View(timeout=60)
+            view.add_item(back_button)
+
+            # Update the message to show only the selected worksheet's information and the 'Go Back' button
+            await interaction.message.edit(embed=embed, view=view)
+            print_log('INFO', f'{worksheet_name} selected by {interaction.user} (WorksheetButtonView)')
+
+        return callback
+
+    async def go_back_callback(self, interaction: discord.Interaction):
+        # Go back to the sheet selection
+        embed = Embed(
+            title="Google Sheets",
+            description="Обери таблицю, яку хочеш відкрити:",
+            color=colors['blue']
+        )
+        view = SheetsButtonView(self.sheets_info, self.ctx)
+        await interaction.message.edit(embed=embed, view=view)
+        print_log('INFO', f'User {interaction.user} went back to the sheet selection (WorksheetButtonView -> SheetsButtonView)')
+
+
+# View for choosing a sheet
 class SheetsButtonView(View):
     def __init__(self, sheets_info: dict[str, str], ctx, embed_title="Google Sheets"):
         """
@@ -124,25 +187,25 @@ class SheetsButtonView(View):
     def create_buttons(self):
         for sheet_name, sheet_link in self.sheets_info.items():  # key, value in dict
             button = Button(label=sheet_name, style=discord.ButtonStyle.primary)
-            button.callback = self.create_callback(sheet_name, sheet_link)
+            button.callback = self.create_callback(sheet_name, get_sheet_id(sheet_link))
             self.add_item(button)
 
-    def create_callback(self, sheet_name, sheet_link):
+    def create_callback(self, sheet_name: str, sheet_id: str):
         async def callback(interaction: discord.Interaction):
-            # update the existing message with the selected sheet's information
+            # Retrieve worksheets for the selected sheet
+            worksheets = get_all_worksheets_list(sheet_id)  # This should return a list of worksheet names
+
+            # Update the existing message with the list of worksheets
             embed = Embed(
                 title=sheet_name,
-                description=f"[Відкрити в браузері]({sheet_link})",
+                description="Обери робочий аркуш, який хочеш відкрити:",
                 color=colors['blue']
             )
 
-            # 'Go Back' button
-            back_button = Button(label="Go Back", style=discord.ButtonStyle.secondary)
-            back_button.callback = self.go_back_callback
-            view = View(timeout=60)
-            view.add_item(back_button)
+            # Pass the selected sheet name and list of worksheets to the new view
+            view = WorksheetButtonView(sheet_name, worksheets, self.sheets_info, self.ctx)
             await interaction.message.edit(embed=embed, view=view)
-            print_log('INFO', f'{sheet_name} selected by {interaction.user} (show_sheets -> Button1)')
+            print_log('INFO', f'{sheet_name} selected by {interaction.user} (show_sheets -> WorksheetButtonView)')
 
         return callback
 
