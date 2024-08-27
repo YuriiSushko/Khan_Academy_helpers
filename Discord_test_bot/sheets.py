@@ -1,8 +1,8 @@
 import gspread
 from google.oauth2.service_account import Credentials
+
 import os
 import dotenv
-import json
 
 
 # Load environment variables
@@ -10,7 +10,6 @@ dotenv.load_dotenv()
 
 SHEETS_LINK = os.getenv('SHEETS_LINK')
 SHEET_ID = SHEETS_LINK.split('/')[-2]
-DISCORD_TOKEN = os.getenv('DISCORD_TOKEN')
 
 # Load credentials and create a client
 scopes = [
