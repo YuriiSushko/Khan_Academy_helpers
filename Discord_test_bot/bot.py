@@ -105,33 +105,59 @@ async def paginate_embeds(ctx):
     print_log('INFO', 'Pagination ended and reactions cleared')
 
 
+# to interact with users using buttons
 class SheetsButtonView(View):
-    def __init__(self, sheets_info):
-        super().__init__(timeout=60)
+    def __init__(self, sheets_info: dict[str, str], ctx, embed_title="Google Sheets"):
+        """
+        Initializes the view with buttons for each sheet.
+        :param sheets_info: Use get_sheets_info() to get the dictionary.
+        :param ctx: The context of the command.
+        :param embed_title: The title itself lmao.
+        """
+        super().__init__(timeout=60)  # view will be removed after 60 seconds of inactivity
         self.sheets_info = sheets_info
+        self.ctx = ctx
+        self.embed_title = embed_title
+        self.create_buttons()
 
-    # Dynamically create a button for each sheet
+    # dynamically create a button for each sheet
     def create_buttons(self):
-        for sheet_name, sheet_link in self.sheets_info.items():
+        for sheet_name, sheet_link in self.sheets_info.items():  # key, value in dict
             button = Button(label=sheet_name, style=discord.ButtonStyle.primary)
             button.callback = self.create_callback(sheet_name, sheet_link)
             self.add_item(button)
 
-    # Create a callback for each button
     def create_callback(self, sheet_name, sheet_link):
         async def callback(interaction: discord.Interaction):
-            # Send another embed with the selected sheet's information
+            # update the existing message with the selected sheet's information
             embed = Embed(
                 title=sheet_name,
                 description=f"[Відкрити в браузері]({sheet_link})",
                 color=colors['blue']
             )
-            await interaction.response.send_message(embed=embed)
-            print_log('INFO', f'{sheet_name} selected by {interaction.user}')
+
+            # 'Go Back' button
+            back_button = Button(label="Go Back", style=discord.ButtonStyle.secondary)
+            back_button.callback = self.go_back_callback
+            view = View(timeout=60)
+            view.add_item(back_button)
+            await interaction.message.edit(embed=embed, view=view)
+            print_log('INFO', f'{sheet_name} selected by {interaction.user} (show_sheets -> Button1)')
+
         return callback
 
+    async def go_back_callback(self, interaction: discord.Interaction):
+        # get back to the original list of sheets with buttons
+        embed = Embed(
+            title=self.embed_title,
+            description="Обери таблицю, яку хочеш відкрити:",
+            color=colors['blue']
+        )
+        view = SheetsButtonView(self.sheets_info, self.ctx, self.embed_title)
+        await interaction.message.edit(embed=embed, view=view)
+        print_log('INFO', f'User {interaction.user} went back to the sheet selection (show_sheets <- Button1)')
 
-# see and choose available google sheets in embed message
+
 @client.command()
 async def show_sheets(ctx):
     sheets_info = get_sheets_info(SHEETS_LINKS)
@@ -142,12 +168,11 @@ async def show_sheets(ctx):
         color=colors['blue']
     )
 
-    view = SheetsButtonView(sheets_info)
-    view.create_buttons()
+    view = SheetsButtonView(sheets_info, ctx)
 
     await ctx.send(embed=embed, view=view)
     print_log('INFO', f'Google Sheets list sent to {ctx.author} (show_sheets)')
 
+
 if __name__ == "__main__":
     client.run(DS_BOT_TOKEN)
-
