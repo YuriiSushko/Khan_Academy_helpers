@@ -7,10 +7,11 @@ import os
 import dotenv
 
 from gspread import Worksheet
+from pandas import DataFrame
 
 from logs_commands import print_log
 from sheets import (SHEETS_LINKS, get_sheets_info,
-                    get_all_worksheets, parse_data_by_units)
+                    get_all_worksheets, worksheet_to_dataframe)
 
 # Load environment variables
 dotenv.load_dotenv()
@@ -45,13 +46,14 @@ async def ping(ctx):
 
 # view for choosing a lesson within a selected unit
 class ChooseLessonMsg(View):
-    def __init__(self, sheet_name: str, worksheet_name: str, unit_name: str, unit_data: list, previous_embed: Embed = None, previous_view: View = None):
+    def __init__(self, sheet_name: str, worksheet_name: str, unit_name: str, worksheet_df: DataFrame,
+                 previous_embed: Embed = None, previous_view: View = None):
         """
         Embed with buttons for selecting a lesson within a specific unit.
-        :param sheet_name:
-        :param worksheet_name:
-        :param unit_name:
-        :param unit_data: List of lessons within the unit.
+        :param sheet_name: Name of the Google Sheet.
+        :param worksheet_name: Name of the selected worksheet.
+        :param unit_name: Name of the selected unit.
+        :param worksheet_df: DataFrame containing the worksheet data.
         :param previous_embed: The previous embed to return to when going back.
         :param previous_view: The previous view to return to when going back.
         """
@@ -59,19 +61,14 @@ class ChooseLessonMsg(View):
         self.sheet_name = sheet_name
         self.worksheet_name = worksheet_name
         self.unit_name = unit_name
-        self.unit_data = unit_data
+        self.unit_df = worksheet_df[worksheet_df['Unit'] == unit_name]  # Filter lessons by unit name
+        self.lessons = self.unit_df['Lesson'].unique()  # Assuming 'Lesson' column has the lesson names
         self.previous_embed = previous_embed
         self.previous_view = previous_view
         self.create_buttons()
 
-    def __get_all_lessons__(self):
-        for id_data in self.unit_data:
-            row = id_data[0]
-
-
-
     def create_buttons(self):
-        for lesson in self.unit_data:
+        for lesson in self.lessons:
             button = Button(label=lesson, style=discord.ButtonStyle.primary)
             button.callback = self.create_callback(lesson)
             self.add_item(button)
@@ -105,19 +102,21 @@ class ChooseLessonMsg(View):
 
 # view for choosing a unit within a selected worksheet
 class ChooseUnitMsg(View):
-    def __init__(self, sheet_name: str, worksheet_name: str, worksheet_data: dict, previous_embed: Embed = None, previous_view: View = None):
+    def __init__(self, sheet_name: str, worksheet_name: str, worksheet_df: DataFrame, previous_embed: Embed = None,
+                 previous_view: View = None):
         """
         Embed with buttons for selecting a Unit within a specific worksheet.
         :param sheet_name:
         :param worksheet_name:
-        :param worksheet_data:
+        :param worksheet_df:
         :param previous_embed:
         :param previous_view:
         """
         super().__init__(timeout=60)
         self.sheet_name = sheet_name
         self.worksheet_name = worksheet_name
-        self.units = list(worksheet_data.keys())
+        self.units = [unit for unit in worksheet_df['Unit'].unique() if unit]  # remove empty units
+        self.worksheet_df = worksheet_df
         self.previous_embed = previous_embed
         self.previous_view = previous_view
         self.create_buttons()
@@ -142,10 +141,11 @@ class ChooseUnitMsg(View):
                 color=colors['blue']
             )
 
-            # Optionally add more actions for the selected unit here
-
-            await interaction.message.edit(embed=embed, view=self)
-            print_log('INFO', f'{unit_name} selected by {interaction.user} (UnitButtonView)')
+            # Switch to the lesson selection view
+            view = ChooseLessonMsg(self.sheet_name, self.worksheet_name, unit_name, self.worksheet_df,
+                                   previous_embed=interaction.message.embeds[0], previous_view=self)
+            await interaction.message.edit(embed=embed, view=view)
+            print_log('INFO', f'{unit_name} selected by {interaction.user} (UnitButtonView -> LessonButtonView)')
 
         return callback
 
@@ -187,9 +187,7 @@ class ChooseWorksheetMsg(View):
     def create_callback(self, worksheet_ws: Worksheet):
         async def callback(interaction: discord.Interaction):
 
-            data = worksheet_ws.get_all_values()
-            parsed_data = parse_data_by_units(data)  # {Unit: [(row, data), ...]}
-
+            dataframe = worksheet_to_dataframe(worksheet_ws)
             # Create an embed for the selected worksheet's units
             embed = Embed(
                 title=f"Worksheet: {worksheet_ws.title}",
@@ -198,7 +196,7 @@ class ChooseWorksheetMsg(View):
             )
 
             # Switch to the unit selection view
-            view = ChooseUnitMsg(self.sheet_name, worksheet_ws.title, parsed_data, previous_embed=interaction.message.embeds[0], previous_view=self)
+            view = ChooseUnitMsg(self.sheet_name, worksheet_ws.title, dataframe, previous_embed=interaction.message.embeds[0], previous_view=self)
             await interaction.message.edit(embed=embed, view=view)
             print_log('INFO', f'{worksheet_ws.title} selected by {interaction.user} (WorksheetButtonView -> UnitButtonView)')
 

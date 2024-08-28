@@ -4,6 +4,7 @@ from google.oauth2.service_account import Credentials
 
 import os
 import dotenv
+import pandas as pd
 
 # Load environment variables
 dotenv.load_dotenv()
@@ -150,12 +151,28 @@ def get_header_id(worksheet: Worksheet, header: str) -> int:
     return column_id
 
 
+def worksheet_to_dataframe(worksheet: Worksheet, header_row: int = 1) -> pd.DataFrame:
+    """
+    Converts a worksheet to a pandas DataFrame.
+    :param worksheet: The worksheet object.
+    :param header_row: The row number that contains the headers.
+    :return: A pandas DataFrame.
+    """
+    all_data = worksheet.get_all_values()
+    header = all_data[header_row - 1]
+    data = all_data[header_row:]
+    return pd.DataFrame(data, columns=header)
+
+
 if __name__ == "__main__":
     # Test the functions
     sheets_info = get_sheets_info(SHEETS_LINKS)  # {'FOR TESTING': ..., 'FOR TESTING - копія': ...}
+    print(SHEETS_LINKS)
     sheet = get_sheet_by_id(sheets_info['FOR TESTING'])
     worksheets = get_all_worksheets(sheet.id)
     worksheet = get_worksheet(sheet.id, worksheets[0].title)
-    all_data = worksheet.get_all_values()
-    headers_id = get_header_id(worksheet, 'Lesson')
-    print(headers_id)
+    dataframe = worksheet_to_dataframe(worksheet)
+    units = [unit for unit in dataframe['Unit'].unique() if unit]
+    for i, unit in enumerate(units, start=1):
+
+        print(i, unit)
