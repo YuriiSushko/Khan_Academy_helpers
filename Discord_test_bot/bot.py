@@ -48,6 +48,81 @@ async def ping(ctx):
     print_log('INFO', f"Pong! {round(client.latency * 1000)}ms")
 
 
+class SheetMetadata:
+    def __init__(self,
+                 sheet_name: str = None,
+                 sheet_id: str = None,
+                 worksheet_ws: Worksheet = None,
+                 unit_name: str = None,
+                 lesson_name: str = None,
+                 video_id: int = None):
+        self.sheet_name = sheet_name
+        self.sheet_id = sheet_id
+        self.worksheet_name = worksheet_ws.title
+        self.unit_name = unit_name
+        self.lesson_name = lesson_name
+        self.video_id = video_id
+
+
+class EditVideoMsg(View):
+    def __init__(self, sheet_name: str, worksheet_name: str, unit_name: str, lesson_name: str, video_id: int,
+                 video_df: DataFrame, previous_embed: Embed = None, previous_view: View = None):
+        """
+        Embed with buttons for editing specific attributes of a video.
+        :param sheet_name: Name of the Google Sheet.
+        :param worksheet_name: Name of the selected worksheet.
+        :param unit_name: Name of the selected unit.
+        :param lesson_name: Name of the selected lesson.
+        :param video_id: ID (row number) of the selected video.
+        :param video_df: DataFrame containing the video data.
+        :param previous_embed: The previous embed to return to when going back.
+        :param previous_view: The previous view to return to when going back.
+        """
+        super().__init__(timeout=60)
+        self.sheet_name = sheet_name
+        self.worksheet_name = worksheet_name
+        self.unit_name = unit_name
+        self.lesson_name = lesson_name
+        self.video_id = video_id
+        self.video_df = video_df
+        self.previous_embed = previous_embed
+        self.previous_view = previous_view
+        self.create_buttons()
+
+    def create_buttons(self):
+        # Add a toggle button for the "Recorded" status
+        recorded_status = self.video_df.loc[self.video_id, 'Recorded']  # Assuming 'Recorded' column exists
+        recorded_button = Button(label=f"Recorded: {recorded_status}", style=discord.ButtonStyle.primary)
+        recorded_button.callback = self.toggle_recorded_status
+        self.add_item(recorded_button)
+
+        # Add more buttons for other editable fields as needed
+
+        # 'Go Back' button to return to the video selection view
+        back_button = Button(label="Go Back", style=discord.ButtonStyle.secondary)
+        back_button.callback = self.go_back_callback
+        self.add_item(back_button)
+
+    async def toggle_recorded_status(self, interaction: discord.Interaction):
+        # Toggle the 'Recorded' status
+        current_status = self.video_df.loc[self.video_id, 'Recorded']
+        new_status = not current_status
+        self.video_df.at[self.video_id, 'Recorded'] = new_status
+
+        # Update the status in the Google Sheet (assuming you have a function to update the sheet)
+        # Example: update_google_sheet(self.video_df, self.video_id, 'Recorded', new_status)
+
+        # Update the button label
+        self.children[0].label = f"Recorded: {new_status}"
+        await interaction.response.edit_message(view=self)
+        print_log('INFO', f"Recorded status toggled to {new_status} for video {self.video_id} by {interaction.user}")
+
+    async def go_back_callback(self, interaction: discord.Interaction):
+        # Go back to the video selection view
+        await interaction.message.edit(embed=self.previous_embed, view=self.previous_view)
+        print_log('INFO', f'User {interaction.user} went back to the video selection (EditVideoMsg -> VideoButtonView)')
+
+
 # view for choosing a video within a selected lesson
 class ChooseVideoMsg(View):
     def __init__(self, sheet_name: str, worksheet_name: str, unit_name: str, lesson_name: str, unit_df: DataFrame,
@@ -97,10 +172,12 @@ class ChooseVideoMsg(View):
                 color=colors['blue']
             )
 
-            # Here, you can save or process the video_id as needed
-
-            await interaction.message.edit(embed=embed, view=self)
-            print_log(f'INFO', f'{video_title} selected by {interaction.user} (VideoButtonView)')
+            # go to the video edit view
+            view = EditVideoMsg(self.sheet_name, self.worksheet_name, self.unit_name, self.lesson_name, video_id,
+                                self.lesson_df, previous_embed=embed, previous_view=self)
+            await interaction.message.edit(embed=embed, view=view)
+            print_log('INFO',
+                      f'{video_title} selected for editing by {interaction.user} (VideoButtonView -> EditVideoMsg)')
 
         return callback
 
