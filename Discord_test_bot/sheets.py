@@ -176,10 +176,10 @@ def worksheet_to_dataframe(worksheet: Worksheet, header_row: int = 1) -> pd.Data
 
 def fetch_lesson_videos_info(unit_df: pd.DataFrame, lesson_name: str) -> dict:
     """
-    Fetches information about all videos in the specified lesson.
-    :param unit_df: The pandas DataFrame containing the lesson data.
-    :param lesson_name: The name of the lesson to fetch video information for.
-    :return: A formatted string containing video information for the embed message.
+    Fetches the information about the videos in a lesson.
+    :param unit_df:
+    :param lesson_name:
+    :return: dict with video_id as key and video info as value
     """
 
     lessons_df = unit_df[unit_df['Lesson'] == lesson_name]

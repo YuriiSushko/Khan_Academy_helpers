@@ -50,165 +50,176 @@ async def ping(ctx):
 
 class SheetMetadata:
     def __init__(self,
+                 sheets_info: dict[str, str] = None,
                  sheet_name: str = None,
                  sheet_id: str = None,
-                 worksheet_ws: Worksheet = None,
+                 worksheets_ws: list[Worksheet] = None,
+                 current_worksheet_ws: Worksheet = None,
                  unit_name: str = None,
                  lesson_name: str = None,
-                 video_id: int = None):
+                 video_id: int = None,
+                 current_df: DataFrame = None):
+        self.sheets_info = sheets_info
         self.sheet_name = sheet_name
         self.sheet_id = sheet_id
-        self.worksheet_name = worksheet_ws.title
+        self.worksheets_ws = worksheets_ws
+        self.current_ws = current_worksheet_ws  # Worksheet object for direct cell modifications
+        self.worksheet_name = current_worksheet_ws.title if current_worksheet_ws else None
         self.unit_name = unit_name
         self.lesson_name = lesson_name
         self.video_id = video_id
+        self.current_df = current_df  # DataFrame to store the current data
+
+
+def init_embed(name: str, metadata: SheetMetadata) -> Embed:
+    """
+    Initializes or updates an embed based on the current metadata.
+    :param name: The name representing the current view (e.g., 'sheet', 'worksheet', 'unit', 'lesson', 'video').
+    :param metadata: The metadata holding the current state of the navigation.
+    :return: A Discord Embed object.
+    """
+    if name == "sheet":
+        return Embed(
+            title="Google Sheets",
+            description="Обери таблицю, яку хочеш відкрити:",
+            color=colors['blue']
+        )
+    elif name == "worksheet":
+        return Embed(
+            title=f"Worksheet: {metadata.worksheet_name}",
+            description="Обери юніт, який хочеш відкрити:",
+            color=colors['blue']
+        )
+    elif name == "unit":
+        return Embed(
+            title=f"Unit: {metadata.unit_name}",
+            description=f"Обери урок, який хочеш відкрити:",
+            color=colors['blue']
+        )
+    elif name == "lesson":
+        lesson_meta = fetch_lesson_videos_info(metadata.current_df, metadata.lesson_name)
+
+        actor_role = f"<@&1278343956077215756>"
+
+        # Create an embed for the selected lesson
+        embed = Embed(
+            title=f"Lesson: {metadata.lesson_name}",
+            description="Обери відео, яке хочеш відкрити:",
+            color=colors['blue']
+        )
+        for id in lesson_meta:
+            status = lesson_meta[id]['status']
+            title = lesson_meta[id]['video_title']
+            link = lesson_meta[id]['video_link']
+            actor = lesson_meta[id]['actor']
+
+            embed.add_field(name=f"{id}. {title}",
+                            value=f"{status}\n"
+                                  f"{actor_role}: {actor}\n"  # instead of 'Actor' insert a role in discord
+                                  f"{link_in_discord('Відкрити відео в YouTube', link)}",
+                            inline=False)
+
+        return embed
+    elif name == "video":
+        # Ensure video_id is set and valid
+        video_info = metadata.current_df.loc[metadata.video_id]
+        video_title = video_info.get('ID_simulated', "ID was not found.")
+        video_description = video_info.get('Description', 'No description available.')
+        video_url = video_info.get('Video URL', 'No URL available.')
+
+        return Embed(
+            title=f"Video: {video_title}",
+            description=f"Video Info: {video_description}\nVideo URL: {video_url}",
+            color=colors['blue']
+        )
+    return Embed()  # Return an empty embed if the name is not recognized
 
 
 class EditVideoMsg(View):
-    def __init__(self, sheet_name: str, worksheet_name: str, unit_name: str, lesson_name: str, video_id: int,
-                 video_df: DataFrame, previous_embed: Embed = None, previous_view: View = None):
-        """
-        Embed with buttons for editing specific attributes of a video.
-        :param sheet_name: Name of the Google Sheet.
-        :param worksheet_name: Name of the selected worksheet.
-        :param unit_name: Name of the selected unit.
-        :param lesson_name: Name of the selected lesson.
-        :param video_id: ID (row number) of the selected video.
-        :param video_df: DataFrame containing the video data.
-        :param previous_embed: The previous embed to return to when going back.
-        :param previous_view: The previous view to return to when going back.
-        """
+    def __init__(self, metadata: SheetMetadata):
         super().__init__(timeout=60)
-        self.sheet_name = sheet_name
-        self.worksheet_name = worksheet_name
-        self.unit_name = unit_name
-        self.lesson_name = lesson_name
-        self.video_id = video_id
-        self.video_df = video_df
-        self.previous_embed = previous_embed
-        self.previous_view = previous_view
+        self.metadata = metadata
         self.create_buttons()
 
     def create_buttons(self):
-        # Add a toggle button for the "Recorded" status
-        recorded_status = self.video_df.loc[self.video_id, 'Recorded']  # Assuming 'Recorded' column exists
+        recorded_status = self.metadata.current_df.loc[self.metadata.video_id, 'Recorded']  # Assuming 'Recorded' exists
         recorded_button = Button(label=f"Recorded: {recorded_status}", style=discord.ButtonStyle.primary)
         recorded_button.callback = self.toggle_recorded_status
         self.add_item(recorded_button)
 
         # Add more buttons for other editable fields as needed
 
-        # 'Go Back' button to return to the video selection view
         back_button = Button(label="Go Back", style=discord.ButtonStyle.secondary)
         back_button.callback = self.go_back_callback
         self.add_item(back_button)
 
     async def toggle_recorded_status(self, interaction: discord.Interaction):
-        # Toggle the 'Recorded' status
-        current_status = self.video_df.loc[self.video_id, 'Recorded']
+        current_status = self.metadata.current_df.loc[self.metadata.video_id, 'Recorded']
         new_status = not current_status
-        self.video_df.at[self.video_id, 'Recorded'] = new_status
+        self.metadata.current_df.at[self.metadata.video_id, 'Recorded'] = new_status
 
-        # Update the status in the Google Sheet (assuming you have a function to update the sheet)
-        # Example: update_google_sheet(self.video_df, self.video_id, 'Recorded', new_status)
+        cell_row = self.metadata.video_id + 2  # Assuming the data starts at row 2 in the sheet
+        cell_col = self.metadata.current_df.columns.get_loc('Recorded') + 1  # Find the column index for 'Recorded'
+        self.metadata.current_ws.update_cell(cell_row, cell_col, new_status)
 
-        # Update the button label
         self.children[0].label = f"Recorded: {new_status}"
-        await interaction.response.edit_message(view=self)
-        print_log('INFO', f"Recorded status toggled to {new_status} for video {self.video_id} by {interaction.user}")
+        await interaction.response.edit_message(view=self)  # fix it later
+        print_log('INFO', f"Recorded status toggled to {new_status} for video {self.metadata.video_id} by {interaction.user}")
 
     async def go_back_callback(self, interaction: discord.Interaction):
-        # Go back to the video selection view
-        await interaction.message.edit(embed=self.previous_embed, view=self.previous_view)
+        embed = init_embed("lesson", self.metadata)
+        view = ChooseVideoMsg(self.metadata)
+        await interaction.message.edit(embed=embed, view=view)
         print_log('INFO', f'User {interaction.user} went back to the video selection (EditVideoMsg -> VideoButtonView)')
 
 
-# view for choosing a video within a selected lesson
 class ChooseVideoMsg(View):
-    def __init__(self, sheet_name: str, worksheet_name: str, unit_name: str, lesson_name: str, unit_df: DataFrame,
-                 previous_embed: Embed = None, previous_view: View = None):
-        """
-        Embed with buttons for selecting a video within a specific lesson.
-        :param sheet_name: Name of the Google Sheet.
-        :param worksheet_name: Name of the selected worksheet.
-        :param unit_name: Name of the selected unit.
-        :param lesson_name: Name of the selected lesson.
-        :param unit_df: DataFrame containing the lesson data.
-        :param previous_embed: The previous embed to return to when going back.
-        :param previous_view: The previous view to return to when going back.
-        """
+    def __init__(self, metadata: SheetMetadata):
         super().__init__(timeout=60)
-        self.sheet_name = sheet_name
-        self.worksheet_name = worksheet_name
-        self.unit_name = unit_name
-        self.lesson_name = lesson_name
-        self.lesson_df = unit_df[unit_df['Lesson'] == lesson_name]  # filters by lesson name
-        self.previous_embed = previous_embed
-        self.previous_view = previous_view
+        self.metadata = metadata
+        self.lesson_df = metadata.current_df[metadata.current_df['Lesson'] == metadata.lesson_name]
         self.create_buttons()
 
     def create_buttons(self):
         for idx, row in self.lesson_df.iterrows():
-            video_title = row.get('ID_simulated', f"ID was not found. Pipec blin")
+            video_title = row.get('ID_simulated', "ID was not found.")
             button = Button(label=video_title, style=discord.ButtonStyle.primary)
             button.callback = self.create_callback(video_title, idx)
             self.add_item(button)
 
-        # 'Go Back' button to return to the lesson selection view
         back_button = Button(label="Go Back", style=discord.ButtonStyle.secondary)
         back_button.callback = self.go_back_callback
         self.add_item(back_button)
 
     def create_callback(self, video_title: str, video_id: int):
         async def callback(interaction: discord.Interaction):
-            # Create an embed for the selected video
+            # Ensure video_id is set before accessing the DataFrame
+            self.metadata.video_id = video_id
             video_info = self.lesson_df.loc[video_id]
-            video_description = video_info.get('Description', 'No description available.')
-            video_url = video_info.get('Video URL', 'No URL available.')
 
-            embed = Embed(
-                title=f"Video: {video_title}",
-                description=f"Video Info: {video_description}\nVideo URL: {video_url}",
-                color=colors['blue']
-            )
+            # Update embed and metadata before editing
+            self.metadata.current_df = self.lesson_df
+            embed = init_embed("video", self.metadata)
+            view = EditVideoMsg(self.metadata)
 
-            # go to the video edit view
-            view = EditVideoMsg(self.sheet_name, self.worksheet_name, self.unit_name, self.lesson_name, video_id,
-                                self.lesson_df, previous_embed=embed, previous_view=self)
             await interaction.message.edit(embed=embed, view=view)
-            print_log('INFO',
-                      f'{video_title} selected for editing by {interaction.user} (VideoButtonView -> EditVideoMsg)')
+            print_log('INFO', f'{video_title} selected for editing by {interaction.user} (VideoButtonView -> EditVideoMsg)')
 
         return callback
 
     async def go_back_callback(self, interaction: discord.Interaction):
-        # Go back to the lesson selection view
-        await interaction.message.edit(embed=self.previous_embed, view=self.previous_view)
-        print_log('INFO',
-                  f'User {interaction.user} went back to the lesson selection (VideoButtonView -> LessonButtonView)')
+        embed = init_embed("unit", self.metadata)
+        view = ChooseLessonMsg(self.metadata)
+        await interaction.message.edit(embed=embed, view=view)
+        print_log('INFO', f'User {interaction.user} went back to the lesson selection (VideoButtonView -> LessonButtonView)')
 
 
-# view for choosing a lesson within a selected unit
 class ChooseLessonMsg(View):
-    def __init__(self, sheet_name: str, worksheet_name: str, unit_name: str, worksheet_df: DataFrame,
-                 previous_embed: Embed = None, previous_view: View = None):
-        """
-        Embed with buttons for selecting a lesson within a specific unit.
-        :param sheet_name: Name of the Google Sheet.
-        :param worksheet_name: Name of the selected worksheet.
-        :param unit_name: Name of the selected unit.
-        :param worksheet_df: DataFrame containing the worksheet data.
-        :param previous_embed: The previous embed to return to when going back.
-        :param previous_view: The previous view to return to when going back.
-        """
+    def __init__(self, metadata: SheetMetadata):
         super().__init__(timeout=60)
-        self.sheet_name = sheet_name
-        self.worksheet_name = worksheet_name
-        self.unit_name = unit_name
-        self.unit_df = worksheet_df[worksheet_df['Unit'] == unit_name]  # Filter lessons by unit name
-        self.lessons_names = self.unit_df['Lesson'].unique()  # Assuming 'Lesson' column has the lesson names
-        self.previous_embed = previous_embed
-        self.previous_view = previous_view
+        self.metadata = metadata
+        self.unit_df = metadata.current_df[metadata.current_df['Unit'] == metadata.unit_name]
+        self.lessons_names = self.unit_df['Lesson'].unique()
         self.create_buttons()
 
     def create_buttons(self):
@@ -217,70 +228,33 @@ class ChooseLessonMsg(View):
             button.callback = self.create_callback(lesson_name)
             self.add_item(button)
 
-        # 'Go Back' button to return to the unit selection view
         back_button = Button(label="Go Back", style=discord.ButtonStyle.secondary)
         back_button.callback = self.go_back_callback
         self.add_item(back_button)
 
     def create_callback(self, lesson: str):
         async def callback(interaction: discord.Interaction):
-            metadata = fetch_lesson_videos_info(self.unit_df, lesson)
-
-            actor_role = f"<@&1278343956077215756>"
-
-            # Create an embed for the selected lesson
-            embed = Embed(
-                title=f"Lesson: {lesson}",
-                description="Обери відео, яке хочеш відкрити:",
-                color=colors['blue']
-            )
-
-            for id in metadata:
-                status = metadata[id]['status']
-                title = metadata[id]['video_title']
-                link = metadata[id]['video_link']
-                actor = metadata[id]['actor']
-
-                embed.add_field(name=f"{id}. {title}",
-                                value=f"{status}\n"
-                                      f"{actor_role}: {actor}\n"  # instead of 'Actor' insert a role in discord
-                                      f"{link_in_discord('Відкрити відео в YouTube', link)}",
-                                inline=False)
-
-            # go to the video selection view
-            view = ChooseVideoMsg(self.sheet_name, self.worksheet_name, self.unit_name, lesson, self.unit_df,
-                                  previous_embed=interaction.message.embeds[0], previous_view=self)
+            self.metadata.lesson_name = lesson
+            self.metadata.current_df = self.unit_df
+            embed = init_embed("lesson", self.metadata)
+            view = ChooseVideoMsg(self.metadata)
             await interaction.message.edit(embed=embed, view=view)
             print_log('INFO', f'{lesson} selected by {interaction.user} (LessonButtonView -> VideoButtonView)')
 
         return callback
 
     async def go_back_callback(self, interaction: discord.Interaction):
-        # Go back to the unit selection view
-        await interaction.message.edit(embed=self.previous_embed, view=self.previous_view)
-        print_log('INFO',
-                  f'User {interaction.user} went back to the unit selection (LessonButtonView -> UnitButtonView)')
+        embed = init_embed("worksheet", self.metadata)
+        view = ChooseUnitMsg(self.metadata)
+        await interaction.message.edit(embed=embed, view=view)
+        print_log('INFO', f'User {interaction.user} went back to the unit selection (LessonButtonView -> UnitButtonView)')
 
 
-# view for choosing a unit within a selected worksheet
 class ChooseUnitMsg(View):
-    def __init__(self, sheet_name: str, worksheet_name: str, worksheet_df: DataFrame, previous_embed: Embed = None,
-                 previous_view: View = None):
-        """
-        Embed with buttons for selecting a Unit within a specific worksheet.
-        :param sheet_name:
-        :param worksheet_name:
-        :param worksheet_df:
-        :param previous_embed:
-        :param previous_view:
-        """
+    def __init__(self, metadata: SheetMetadata):
         super().__init__(timeout=60)
-        self.sheet_name = sheet_name
-        self.worksheet_name = worksheet_name
-        self.units = [unit for unit in worksheet_df['Unit'].unique() if unit]  # remove empty units
-        self.worksheet_df = worksheet_df
-        self.previous_embed = previous_embed
-        self.previous_view = previous_view
+        self.metadata = metadata
+        self.units = [unit for unit in metadata.current_df['Unit'].unique() if unit]
         self.create_buttons()
 
     def create_buttons(self):
@@ -289,52 +263,32 @@ class ChooseUnitMsg(View):
             button.callback = self.create_callback(unit)
             self.add_item(button)
 
-        # Add a "Go Back" button to return to the worksheet selection view
         back_button = Button(label="Go Back", style=discord.ButtonStyle.secondary)
         back_button.callback = self.go_back_callback
         self.add_item(back_button)
 
     def create_callback(self, unit_name: str):
         async def callback(interaction: discord.Interaction):
-            # Create an embed for the selected unit
-            embed = Embed(
-                title=f"Unit: {unit_name}",
-                description=f"You have selected the unit: {unit_name} from the worksheet: {self.worksheet_name}.",
-                color=colors['blue']
-            )
-
-            # Switch to the lesson selection view
-            view = ChooseLessonMsg(self.sheet_name, self.worksheet_name, unit_name, self.worksheet_df,
-                                   previous_embed=interaction.message.embeds[0], previous_view=self)
+            self.metadata.unit_name = unit_name
+            embed = init_embed("unit", self.metadata)
+            view = ChooseLessonMsg(self.metadata)
             await interaction.message.edit(embed=embed, view=view)
             print_log('INFO', f'{unit_name} selected by {interaction.user} (UnitButtonView -> LessonButtonView)')
 
         return callback
 
     async def go_back_callback(self, interaction: discord.Interaction):
-        # Go back to the worksheet selection view
-        await interaction.message.edit(embed=self.previous_embed, view=self.previous_view)
-        print_log('INFO',
-                  f'User {interaction.user} went back to the worksheet selection (UnitButtonView -> WorksheetButtonView)')
+        embed = init_embed("worksheet", self.metadata)
+        view = ChooseWorksheetMsg(self.metadata, self.metadata.worksheets_ws)
+        await interaction.message.edit(embed=embed, view=view)
+        print_log('INFO', f'User {interaction.user} went back to the worksheet selection (UnitButtonView -> WorksheetButtonView)')
 
 
-# view for choosing a worksheet within a selected sheet
 class ChooseWorksheetMsg(View):
-    def __init__(self, sheet_name: str, worksheets_ws: list[Worksheet], previous_embed: Embed = None,
-                 previous_view: View = None):
-        """
-        Embed with buttons for selecting a worksheet within a Google Sheets table.
-        :param sheet_name:
-        :param worksheets_ws:
-        :param previous_embed:
-        :param previous_view:
-        """
+    def __init__(self, metadata: SheetMetadata, worksheets_ws: list[Worksheet]):
         super().__init__(timeout=60)
-        self.sheet_name = sheet_name
+        self.metadata = metadata
         self.worksheets_ws = worksheets_ws
-        self.worksheets_names = [ws.title for ws in worksheets_ws]
-        self.previous_embed = previous_embed
-        self.previous_view = previous_view
         self.create_buttons()
 
     def create_buttons(self):
@@ -343,7 +297,6 @@ class ChooseWorksheetMsg(View):
             button.callback = self.create_callback(ws)
             self.add_item(button)
 
-        # Add a "Go Back" button to return to the sheet selection view
         back_button = Button(label="Go Back", style=discord.ButtonStyle.secondary)
         back_button.callback = self.go_back_callback
         self.add_item(back_button)
@@ -351,66 +304,47 @@ class ChooseWorksheetMsg(View):
     def create_callback(self, worksheet_ws: Worksheet):
         async def callback(interaction: discord.Interaction):
             dataframe = worksheet_to_dataframe(worksheet_ws)
-            # Create an embed for the selected worksheet's units
-            embed = Embed(
-                title=f"Worksheet: {worksheet_ws.title}",
-                description=f"Обери юніт, який хочеш відкрити:",
-                color=colors['blue']
-            )
-
-            # Switch to the unit selection view
-            view = ChooseUnitMsg(self.sheet_name, worksheet_ws.title, dataframe,
-                                 previous_embed=interaction.message.embeds[0], previous_view=self)
+            self.metadata.current_ws = worksheet_ws
+            self.metadata.worksheet_name = worksheet_ws.title
+            self.metadata.current_df = dataframe
+            embed = init_embed("worksheet", self.metadata)
+            view = ChooseUnitMsg(self.metadata)
             await interaction.message.edit(embed=embed, view=view)
-            print_log('INFO',
-                      f'{worksheet_ws.title} selected by {interaction.user} (WorksheetButtonView -> UnitButtonView)')
+            print_log('INFO', f'{worksheet_ws.title} selected by {interaction.user} (WorksheetButtonView -> UnitButtonView)')
 
         return callback
 
     async def go_back_callback(self, interaction: discord.Interaction):
-        # Go back to the sheet selection view
-        await interaction.message.edit(embed=self.previous_embed, view=self.previous_view)
-        print_log('INFO',
-                  f'User {interaction.user} went back to the sheet selection (WorksheetButtonView -> SheetsButtonView)')
+        embed = init_embed("sheet", self.metadata)
+        view = ChooseSheetMsg(self.metadata.sheets_info, interaction)
+        await interaction.message.edit(embed=embed, view=view)
+        print_log('INFO', f'User {interaction.user} went back to the sheet selection (WorksheetButtonView -> SheetsButtonView)')
 
 
-# View for choosing a sheet
 class ChooseSheetMsg(View):
-    def __init__(self, sheets_info: dict[str, str], ctx, embed_title="Google Sheets"):
-        """
-        Embed with buttons for selecting a Google Sheets document.
-        :param sheets_info: {title: 'id'}
-        :param ctx:
-        :param embed_title:
-        """
+    def __init__(self, sheets_info: dict[str, str], ctx):
         super().__init__(timeout=60)
-        self.sheets_names = list(sheets_info.keys())
-        self.sheets_ids = list(sheets_info.values())
+        self.sheets_info = sheets_info
         self.ctx = ctx
-        self.embed_title = embed_title
         self.create_buttons()
 
     def create_buttons(self):
-        for sheet_name, sheet_id in zip(self.sheets_names, self.sheets_ids):
+        for sheet_name, sheet_id in zip(self.sheets_info.keys(), self.sheets_info.values()):
             button = Button(label=sheet_name, style=discord.ButtonStyle.primary)
             button.callback = self.create_callback(sheet_name, sheet_id)
             self.add_item(button)
 
     def create_callback(self, sheet_name: str, sheet_id: str):
         async def callback(interaction: discord.Interaction):
-            # get worksheets for the selected sheet
             worksheets_ws = get_all_worksheets(sheet_id)
-
-            # prepare the embed for the worksheet selection
-            embed = Embed(
-                title=sheet_name,
-                description="Обери робочий аркуш, який хочеш відкрити:",
-                color=colors['blue']
+            metadata = SheetMetadata(
+                sheets_info=self.sheets_info,
+                sheet_name=sheet_name,
+                sheet_id=sheet_id,
+                worksheets_ws=worksheets_ws
             )
-
-            # go to the worksheet selection view
-            view = ChooseWorksheetMsg(sheet_name, worksheets_ws, previous_embed=interaction.message.embeds[0],
-                                      previous_view=self)
+            embed = init_embed("sheet", metadata)
+            view = ChooseWorksheetMsg(metadata, worksheets_ws)
             await interaction.message.edit(embed=embed, view=view)
             print_log('INFO', f'{sheet_name} selected by {interaction.user} (SheetsButtonView -> WorksheetButtonView)')
 
@@ -420,16 +354,8 @@ class ChooseSheetMsg(View):
 @client.command()
 async def show_sheets(ctx):
     sheets_info = get_sheets_info(SHEETS_LINKS)
-
-    # prepare the embed for the sheet selection
-    embed = Embed(
-        title="Google Sheets",
-        description="Обери таблицю, яку хочеш відкрити:",
-        color=colors['blue']
-    )
-
+    embed = init_embed("sheet", SheetMetadata())
     view = ChooseSheetMsg(sheets_info, ctx)
-
     await ctx.send(embed=embed, view=view)
     print_log('INFO', f'Google Sheets list sent to {ctx.author} (show_sheets)')
 
