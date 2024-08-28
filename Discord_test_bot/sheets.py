@@ -153,15 +153,53 @@ def get_header_id(worksheet: Worksheet, header: str) -> int:
 
 def worksheet_to_dataframe(worksheet: Worksheet, header_row: int = 1) -> pd.DataFrame:
     """
-    Converts a worksheet to a pandas DataFrame.
+    Converts a worksheet to a pandas DataFrame and adds a simulated ID column.
     :param worksheet: The worksheet object.
     :param header_row: The row number that contains the headers.
-    :return: A pandas DataFrame.
+    :return: A pandas DataFrame with an extra 'ID_simulated' column.
     """
+    # Fetch all data from the worksheet
     all_data = worksheet.get_all_values()
+
+    # Extract header and data
     header = all_data[header_row - 1]
     data = all_data[header_row:]
-    return pd.DataFrame(data, columns=header)
+
+    # Create DataFrame
+    df = pd.DataFrame(data, columns=header)
+
+    # Add the 'ID_simulated' column
+    df['ID_simulated'] = range(1, len(df) + 1)
+
+    return df
+
+
+def fetch_lesson_videos_info(unit_df: pd.DataFrame, lesson_name: str) -> dict:
+    """
+    Fetches information about all videos in the specified lesson.
+    :param unit_df: The pandas DataFrame containing the lesson data.
+    :param lesson_name: The name of the lesson to fetch video information for.
+    :return: A formatted string containing video information for the embed message.
+    """
+
+    lessons_df = unit_df[unit_df['Lesson'] == lesson_name]
+
+    info = {}
+    for i, row in lessons_df.iterrows():
+        status = row['Status']
+        video_title = row['Title']
+        video_link = row['Link']
+        actor = row['Actor']
+        video_id = row['ID_simulated']
+
+        info[video_id] = {
+            'status': status,
+            'video_title': video_title,
+            'video_link': video_link,
+            'actor': actor,
+        }
+
+    return info
 
 
 if __name__ == "__main__":
@@ -172,7 +210,8 @@ if __name__ == "__main__":
     worksheets = get_all_worksheets(sheet.id)
     worksheet = get_worksheet(sheet.id, worksheets[0].title)
     dataframe = worksheet_to_dataframe(worksheet)
-    units = [unit for unit in dataframe['Unit'].unique() if unit]
-    for i, unit in enumerate(units, start=1):
 
-        print(i, unit)
+    unit_df = dataframe[dataframe['Unit'] == 'Unit 1: Polynomial arithmetic']
+    lesson_name = 'Intro to polynomials'
+    info = fetch_lesson_videos_info(unit_df, lesson_name)
+    print(info)
