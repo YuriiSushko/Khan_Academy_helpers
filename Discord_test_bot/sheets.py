@@ -21,13 +21,22 @@ creds = Credentials.from_service_account_file('credentials.json', scopes=scopes)
 client = gspread.authorize(creds)
 
 
-def get_sheet_id(sheet_link: str) -> str:
+def get_sheets_id(sheet_link: str) -> str:
     """
     Extracts the ID of a Google Sheets document from its URL.
     :param sheet_link: The URL of the Google Sheets document.
     :return: The ID of the Google Sheets document.
     """
     return sheet_link.split('/')[-2]
+
+
+def get_sheet_by_id(sheet_id: str):
+    """
+    Fetches a Google Sheets document by its ID.
+    :param sheet_id: The ID of the Google Sheets document.
+    :return: The Google Sheets document.
+    """
+    return client.open_by_key(sheet_id)
 
 
 def get_sheets_info(sheets_links: list[str]) -> dict:
@@ -40,13 +49,13 @@ def get_sheets_info(sheets_links: list[str]) -> dict:
     for og_link in sheets_links:
         clear_link = og_link.strip()
         try:
-            sheet_id = get_sheet_id(clear_link)
+            sheet_id = get_sheets_id(clear_link)
             sheet = client.open_by_key(sheet_id)
         except Exception as e:
             print(f"Failed to open the document by link: {og_link}")
             print(f"Exception: {e}")
             continue
-        sheets_info[sheet.title] = clear_link
+        sheets_info[sheet.title] = sheet_id
     return sheets_info
 
 
@@ -124,7 +133,8 @@ if __name__ == "__main__":
     print(SHEETS_LINKS)
     info = get_sheets_info(SHEETS_LINKS)
     print(info)
-    SHEET_ID = get_sheet_id(SHEETS_LINKS[0])
+    SHEET_ID = get_sheets_id(SHEETS_LINKS[0])
+    print(SHEET_ID)
     worksheets = get_all_worksheets(SHEET_ID)
     print("Available worksheets:")
     for i, ws in enumerate(worksheets):
