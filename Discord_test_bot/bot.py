@@ -43,20 +43,82 @@ async def ping(ctx):
     print_log('INFO', f"Pong! {round(client.latency * 1000)}ms")
 
 
-# View for choosing a unit within a selected worksheet
+# view for choosing a lesson within a selected unit
+class ChooseLessonMsg(View):
+    def __init__(self, sheet_name: str, worksheet_name: str, unit_name: str, unit_data: list, previous_embed: Embed = None, previous_view: View = None):
+        """
+        Embed with buttons for selecting a lesson within a specific unit.
+        :param sheet_name:
+        :param worksheet_name:
+        :param unit_name:
+        :param unit_data: List of lessons within the unit.
+        :param previous_embed: The previous embed to return to when going back.
+        :param previous_view: The previous view to return to when going back.
+        """
+        super().__init__(timeout=60)
+        self.sheet_name = sheet_name
+        self.worksheet_name = worksheet_name
+        self.unit_name = unit_name
+        self.unit_data = unit_data
+        self.previous_embed = previous_embed
+        self.previous_view = previous_view
+        self.create_buttons()
+
+    def __get_all_lessons__(self):
+        for id_data in self.unit_data:
+            row = id_data[0]
+
+
+
+    def create_buttons(self):
+        for lesson in self.unit_data:
+            button = Button(label=lesson, style=discord.ButtonStyle.primary)
+            button.callback = self.create_callback(lesson)
+            self.add_item(button)
+
+        # Add a "Go Back" button to return to the unit selection view
+        back_button = Button(label="Go Back", style=discord.ButtonStyle.secondary)
+        back_button.callback = self.go_back_callback
+        self.add_item(back_button)
+
+    def create_callback(self, lesson: str):
+        async def callback(interaction: discord.Interaction):
+            # Create an embed for the selected lesson
+            embed = Embed(
+                title=f"Lesson: {lesson}",
+                description=f"You have selected the lesson: {lesson} from the unit: {self.unit_name}.",
+                color=colors['blue']
+            )
+
+            # Optionally add more actions for the selected lesson here
+
+            await interaction.message.edit(embed=embed, view=self)
+            print_log('INFO', f'{lesson} selected by {interaction.user} (LessonButtonView)')
+
+        return callback
+
+    async def go_back_callback(self, interaction: discord.Interaction):
+        # Go back to the unit selection view
+        await interaction.message.edit(embed=self.previous_embed, view=self.previous_view)
+        print_log('INFO', f'User {interaction.user} went back to the unit selection (LessonButtonView -> UnitButtonView)')
+
+
+# view for choosing a unit within a selected worksheet
 class ChooseUnitMsg(View):
-    def __init__(self, sheet_name: str, worksheet_name: str, worksheet_data: dict, previous_view: View):
+    def __init__(self, sheet_name: str, worksheet_name: str, worksheet_data: dict, previous_embed: Embed = None, previous_view: View = None):
         """
         Embed with buttons for selecting a Unit within a specific worksheet.
         :param sheet_name:
         :param worksheet_name:
         :param worksheet_data:
+        :param previous_embed:
         :param previous_view:
         """
         super().__init__(timeout=60)
         self.sheet_name = sheet_name
         self.worksheet_name = worksheet_name
         self.units = list(worksheet_data.keys())
+        self.previous_embed = previous_embed
         self.previous_view = previous_view
         self.create_buttons()
 
@@ -89,23 +151,25 @@ class ChooseUnitMsg(View):
 
     async def go_back_callback(self, interaction: discord.Interaction):
         # Go back to the worksheet selection view
-        await interaction.message.edit(embed=interaction.message.embeds[0], view=self.previous_view)
+        await interaction.message.edit(embed=self.previous_embed, view=self.previous_view)
         print_log('INFO', f'User {interaction.user} went back to the worksheet selection (UnitButtonView -> WorksheetButtonView)')
 
 
 # view for choosing a worksheet within a selected sheet
 class ChooseWorksheetMsg(View):
-    def __init__(self, sheet_name: str, worksheets_ws: list[Worksheet], previous_view: View):
+    def __init__(self, sheet_name: str, worksheets_ws: list[Worksheet], previous_embed: Embed = None, previous_view: View = None):
         """
-        Emded with buttons for selecting a worksheet within a Google Sheets table.
+        Embed with buttons for selecting a worksheet within a Google Sheets table.
         :param sheet_name:
         :param worksheets_ws:
+        :param previous_embed:
         :param previous_view:
         """
         super().__init__(timeout=60)
         self.sheet_name = sheet_name
         self.worksheets_ws = worksheets_ws
         self.worksheets_names = [ws.title for ws in worksheets_ws]
+        self.previous_embed = previous_embed
         self.previous_view = previous_view
         self.create_buttons()
 
@@ -134,7 +198,7 @@ class ChooseWorksheetMsg(View):
             )
 
             # Switch to the unit selection view
-            view = ChooseUnitMsg(self.sheet_name, worksheet_ws.title, parsed_data, previous_view=self)
+            view = ChooseUnitMsg(self.sheet_name, worksheet_ws.title, parsed_data, previous_embed=interaction.message.embeds[0], previous_view=self)
             await interaction.message.edit(embed=embed, view=view)
             print_log('INFO', f'{worksheet_ws.title} selected by {interaction.user} (WorksheetButtonView -> UnitButtonView)')
 
@@ -142,11 +206,11 @@ class ChooseWorksheetMsg(View):
 
     async def go_back_callback(self, interaction: discord.Interaction):
         # Go back to the sheet selection view
-        await interaction.message.edit(embed=interaction.message.embeds[0], view=self.previous_view)
+        await interaction.message.edit(embed=self.previous_embed, view=self.previous_view)
         print_log('INFO', f'User {interaction.user} went back to the sheet selection (WorksheetButtonView -> SheetsButtonView)')
 
 
-# view for choosing a sheet
+# View for choosing a sheet
 class ChooseSheetMsg(View):
     def __init__(self, sheets_info: dict[str, str], ctx, embed_title="Google Sheets"):
         """
@@ -181,7 +245,7 @@ class ChooseSheetMsg(View):
             )
 
             # go to the worksheet selection view
-            view = ChooseWorksheetMsg(sheet_name, worksheets_ws, previous_view=self)
+            view = ChooseWorksheetMsg(sheet_name, worksheets_ws, previous_embed=interaction.message.embeds[0], previous_view=self)
             await interaction.message.edit(embed=embed, view=view)
             print_log('INFO', f'{sheet_name} selected by {interaction.user} (SheetsButtonView -> WorksheetButtonView)')
 

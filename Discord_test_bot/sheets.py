@@ -128,31 +128,34 @@ def parse_data_by_units(all_data: list, unit_column_id: int = 2) -> dict:
     return parsed_data
 
 
+def get_header_id(worksheet: Worksheet, header: str) -> int:
+    """
+    Fetches the headers of a worksheet and returns a dictionary with the header names as keys
+    and their column indexes as values.
+
+    :param worksheet: The worksheet object.
+    :return: A dictionary where the key is the header name and the value is the column index.
+    """
+    column_id = None
+    # Find the column index of the unit column if not provided
+    all_data = worksheet.get_all_values()
+    headers_row = all_data[0]
+    for i in range(len(headers_row)):
+        if headers_row[i].lower() == header.lower():
+            column_id = i
+            break
+
+    if column_id is None:
+        raise Exception(f"Header {header} not found in the worksheet.")
+    return column_id
+
+
 if __name__ == "__main__":
-    # Fetch all worksheets and display their titles
-    print(SHEETS_LINKS)
-    info = get_sheets_info(SHEETS_LINKS)
-    print(info)
-    SHEET_ID = get_sheets_id(SHEETS_LINKS[0])
-    print(SHEET_ID)
-    worksheets = get_all_worksheets(SHEET_ID)
-    print("Available worksheets:")
-    for i, ws in enumerate(worksheets):
-        print(f"{i + 1}. {ws.title}")
-
-    # Let the user select a worksheet by its number
-    selected_index = int(input("Enter the number of the worksheet you want to fetch: ")) - 1
-    selected_worksheet = worksheets[selected_index].title
-
-    # Fetch the selected worksheet
-    worksheet = get_worksheet(SHEET_ID, selected_worksheet)
-
-    # Example: Fetch all values from the selected worksheet
-    data = worksheet.get_all_values()
-
-    # Example: Parse the data by units
-    data_dict = parse_data_by_units(data, -1)
-    print("Parsed data:")
-    print(data_dict.keys())
-
-    print(data_dict['Unit 12: Modeling'])
+    # Test the functions
+    sheets_info = get_sheets_info(SHEETS_LINKS)  # {'FOR TESTING': ..., 'FOR TESTING - копія': ...}
+    sheet = get_sheet_by_id(sheets_info['FOR TESTING'])
+    worksheets = get_all_worksheets(sheet.id)
+    worksheet = get_worksheet(sheet.id, worksheets[0].title)
+    all_data = worksheet.get_all_values()
+    headers_id = get_header_id(worksheet, 'Lesson')
+    print(headers_id)
