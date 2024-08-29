@@ -174,7 +174,7 @@ def worksheet_to_dataframe(worksheet: Worksheet, header_row: int = 1) -> pd.Data
     return df
 
 
-def fetch_lesson_videos_info(unit_df: pd.DataFrame, lesson_name: str) -> dict:
+def fetch_lesson_videos_info(lessons_df: pd.DataFrame) -> dict:
     """
     Fetches the information about the videos in a lesson.
     :param unit_df:
@@ -182,9 +182,7 @@ def fetch_lesson_videos_info(unit_df: pd.DataFrame, lesson_name: str) -> dict:
     :return: dict with video_id as key and video info as value
     """
 
-    lessons_df = unit_df[unit_df['Lesson'] == lesson_name]
-
-    info = {}
+    videos_info = {}
     for i, row in lessons_df.iterrows():
         status = row['Status']
         video_title = row['Title']
@@ -192,14 +190,14 @@ def fetch_lesson_videos_info(unit_df: pd.DataFrame, lesson_name: str) -> dict:
         actor = row['Actor']
         video_id = row['ID_simulated']
 
-        info[video_id] = {
+        videos_info[video_id] = {
             'status': status,
             'video_title': video_title,
             'video_link': video_link,
             'actor': actor,
         }
 
-    return info
+    return videos_info
 
 
 if __name__ == "__main__":
