@@ -40,7 +40,6 @@ def print_log(type: str, message: str, width: int = 7) -> None:
 print_colored("Logging messages uploaded successfully!", '92')
 
 
-
 if __name__ == "__main__":
     print_log('ERROR', "Error transferring message: 'TonapiClient' object has no attribute '_TonapiClient__read_content'")
     print_log('WARNING', "Retrying transfer...")
